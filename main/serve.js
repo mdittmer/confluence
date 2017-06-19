@@ -8,6 +8,8 @@ const path = require('path');
 
 global.FOAM_FLAGS = {gcloud: true};
 require('foam2');
+require('../node_modules/foam2/src/foam/nanos/nanos.js');
+
 require('../lib/confluence/aggressive_removal.es6.js');
 require('../lib/confluence/api_velocity.es6.js');
 require('../lib/confluence/browser_specific.es6.js');
