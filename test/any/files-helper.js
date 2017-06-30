@@ -46,6 +46,9 @@ beforeAll(function() {
   require('../../lib/confluence/failure_to_ship.es6.js');
   require('../../lib/confluence/metric_computer.es6.js');
   require('../../lib/confluence/set_ops.es6.js');
+  require('../../lib/dao/compare_sink.es6.js');
+  require('../../lib/dao/contextualizing_dao.es6.js');
+  require('../../lib/dao/lazy_cache_dao.es6.js');
   require('../../lib/dao_container.es6.js');
   require('../../lib/datastore/rate_limited_DAO.es6.js');
   require('../../lib/datastore/rate_limiter.es6.js');

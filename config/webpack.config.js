@@ -12,7 +12,7 @@ const FOAM_DIR = path.resolve(__dirname, '../node_modules/foam2');
 const BUNDLE_DIR = path.resolve(__dirname, '../static/bundle');
 
 const execSync = require('child_process').execSync;
-execSync(`node '${FOAM_DIR}/tools/build.js'  web,gcloud`);
+execSync(`node '${FOAM_DIR}/tools/build.js'  web,gcloud,debug`);
 execSync(`mkdir -p '${ROOT_DIR}/static/bundle'`);
 execSync(`mv '${FOAM_DIR}/foam-bin.js' '${ROOT_DIR}/static/bundle/foam.bundle.js'`);
 

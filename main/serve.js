@@ -8,7 +8,6 @@ const path = require('path');
 
 global.FOAM_FLAGS = {gcloud: true};
 require('foam2');
-require('../node_modules/foam2/src/foam/nanos/nanos.js');
 
 require('../lib/confluence/aggressive_removal.es6.js');
 require('../lib/confluence/api_velocity.es6.js');
@@ -25,7 +24,7 @@ let server = foam.lookup('foam.net.node.Server').create({
 
 const credentials = JSON.parse(fs.readFileSync(
     path.resolve(__dirname, '../.local/credentials.json')));
-const logger = foam.lookup('foam.nanos.log.ConsoleLogger').create();
+const logger = foam.lookup('foam.log.ConsoleLogger').create();
 const ctx = foam.lookup('org.chromium.apis.web.DatastoreContainer').create({
   gcloudAuthEmail: credentials.client_email,
   gcloudAuthPrivateKey: credentials.private_key,
@@ -48,7 +47,13 @@ const SkeletonBox = foam.lookup('foam.box.SkeletonBox');
 function registerDAO(name, opt_dao) {
   var dao = ctx[name] || opt_dao;
   foam.assert(dao, 'Broken use of helper: registerDAO()');
-  ctx.registry.register(name, null, SkeletonBox.create({data: dao}, ctx));
+  ctx.registry.register(name, null, SkeletonBox.create({
+    data: foam.lookup('foam.dao.LoggingDAO').create({
+      name: name,
+      logReads: true,
+      delegate: dao,
+    }, ctx),
+  }, ctx));
 }
 
 registerDAO('releaseDAO');

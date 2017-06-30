@@ -40,7 +40,7 @@ Webpack_PID=$!
 win "WEBPACK STARTED (PID=${Webpack_PID})"
 
 warn "STARTING WEB SERVER"
-node --max_old_space_size=4000 "${WD}/../main/serve.js" &
+node --max_old_space_size=4000 --inspect --debug-brk "${WD}/../main/serve.js" &
 WebServer_PID=$!
 win "WEB SERVER STARTED (PID=${WebServer_PID})"
 

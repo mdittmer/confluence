@@ -34,11 +34,6 @@ app.config(function($stateProvider, $urlRouterProvider) {
     url: '/catalog',
     controller: 'catalogController',
     template: require('../static/view/api_catalog.html'),
-    resolve: {
-      apiPromises: function(api) {
-        return Promise.all(api.promises);
-      },
-    },
   });
 
   $stateProvider.state({
