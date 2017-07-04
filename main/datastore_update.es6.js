@@ -26,7 +26,7 @@ const credentials = JSON.parse(fs.readFileSync(
     path.resolve(__dirname, '../.local/credentials.json')));
 
 const logger = global.logger =
-    foam.lookup('foam.nanos.log.ConsoleLogger').create();
+    foam.lookup('foam.log.ConsoleLogger').create();
 
 const datastoreCtx = global.datastoreCtx =
     foam.lookup('org.chromium.apis.web.DatastoreContainer').create({
@@ -69,13 +69,16 @@ const putMissing = global.putMissing = function(local, remote) {
 };
 
 const verify = global.verify = function(local, remote) {
-  return Promise.all([local, remote]).then(function(sinks) {
+  return Promise.all([
+    local.select(E.COUNT()),
+    remote.select(E.COUNT()),
+  ]).then(function(sinks) {
     if (sinks[0].value !== sinks[1].value) {
       logger.error('Counts are different (' + local.of.id + '): ' +
           sinks[0].value + ', ' + sinks[1].value);
       return putMissing(local, remote).then(() => sinks);
     } else {
-      logger.info('Counts match (' + local.of.id + ')');
+      logger.info('Counts match: ' + sinks[0].value + ' (' + local.of.id + ')');
       return sinks;
     }
   });
