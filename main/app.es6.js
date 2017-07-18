@@ -3,6 +3,31 @@
 // found in the LICENSE file.
 'use strict';
 
+var worker;
+function runDedicatedWorker() {
+  if (worker) return;
+  worker = new Worker('worker.bundle.js');
+}
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    try {
+      navigator.serviceWorker.register('worker.bundle.js')
+          .then(registration => {
+            console.log('ServiceWorker registration successful with scope:',
+                        registration.scope);
+          }, error => {
+            console.warn('ServiceWorker registration failed:', error);
+            runDedicatedWorker();
+          });
+    } catch (error) {
+      console.warn('ServiceWorker registration failed:', error);
+      runDedicatedWorker();
+    }
+  });
+} else {
+  runDedicatedWorker();
+}
+
 require('materialize-css/dist/js/materialize.js');
 require('materialize-css/dist/css/materialize.css');
 require('angular');
