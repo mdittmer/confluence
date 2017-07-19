@@ -6,20 +6,126 @@
 self.global = self.window = self;
 importScripts('./foam.bundle.js');
 
+require('../lib/client/release_interface_dao.es6.js');
 require('../lib/confluence/api_velocity_data.es6.js');
 require('../lib/confluence/browser_metric_data.es6.js');
-require('../lib/confluence/release_interface_dao.es6.js');
 require('../lib/dao_container.es6.js');
 require('../lib/web_apis/release.es6.js');
 require('../lib/web_apis/release_interface_relationship.es6.js');
 require('../lib/web_apis/web_interface.es6.js');
 
+
+foam.CLASS({
+  refines: 'foam.messageport.MessagePortService',
+
+  documentation: `Store a BroadcastBox to all connected pages.`,
+
+  requires: [ 'foam.box.BroadcastBox' ],
+
+  properties: [
+    {
+      name: 'broadcastBox',
+      factory: function() { return this.BroadcastBox.create(); }
+    },
+  ],
+
+  listeners: [
+    function onMessage(port, e) {
+      // Identical to foam.messageport.MessagePortService.onMesssage(), except
+      // for this.broadcastBox management.
+      var msg = this.fonParser.parseString(e.data);
+
+      if ( this.RegisterSelfMessage.isInstance(msg.object) ) {
+        var named = this.NamedBox.create({ name: msg.object.name });
+        named.delegate = this.RawMessagePortBox.create({
+          port: port
+        });
+        // TODO(markdittmer): Need a means of dropping disconnected pages in
+        // ServiceWorker case.
+        //
+        // Assign property to trigger property change event.
+        this.broadcastBox.delegates =
+            this.broadcastBox.delegates.concat([named]);
+        return;
+      }
+
+      this.delegate && this.delegate.send(msg);
+    }
+  ]
+});
+
+foam.CLASS({
+  package: 'org.chromium.apis.web',
+  name: 'NewDataBroadcastBox',
+  extends: 'foam.box.BroadcastBox',
+
+  documentation: `A custom BroadcastBox bound to a
+      MessagePortService.broadcastBox. This box is used to signal all connected
+      pages that there are new data available.`,
+
+  requires: [
+    'foam.box.NamedBox',
+    'org.chromium.apis.web.DAOContainer'
+  ],
+
+  properties: [
+    {
+      class: 'FObjectProperty',
+      name: 'messagePortService',
+      required: true,
+      final: true
+    }
+  ],
+
+  methods: [
+    function init() {
+      // Subscribe to property change events on message port broadcast box
+      // delegates. This triggers rebinding to NamedBox multitons over the
+      // "new data" service name.
+      this.messagePortService.broadcastBox.delegates$
+          .sub(this.onDelegatesChanged);
+    }
+  ],
+
+  listeners: [
+    function onDelegatesChanged(sub, _, __, slot) {
+      // Rebind delegates to new page's "new data" service.
+      const namedBoxes = slot.get();
+      let delegates = new Array(namedBoxes.length);
+      for (var i = 0; i < namedBoxes.length; i++) {
+        const name =
+            `${namedBoxes[i].name}/${this.DAOContainer.NEW_DATA_SERVICE_NAME}`;
+        delegates[i] = this.NamedBox.create({
+          name: name
+        });
+      }
+
+      this.delegates = delegates;
+    }
+  ]
+});
+
+const pkg = org.chromium.apis.web;
+const ctx = foam.box.Context.create({
+  myname: pkg.DAOContainer.WORKER_BOX_CONTEXT_NAME
+});
+const newDataBox = pkg.NewDataBroadcastBox.create({
+  messagePortService: ctx.messagePortService
+}, ctx);
+
+self.onmessage = function(event) {
+  if (!event.data instanceof MessagePort) {
+    throw new Error('Worker: Unexpected control message', event.data);
+  }
+
+  ctx.messagePortService.addPort(event.data);
+};
+
 function run() {
-  const ctx = foam.box.Context.create();
   const C = org.chromium.apis.web.DAOContainer;
   const E = foam.mlang.ExpressionsSingleton.create();
   function getDAOs(name, cls, opt_localDAO) {
-    const local = opt_dao || foam.dao.IDBDAO.create({
+    const local = opt_localDAO || foam.dao.IDBDAO.create({
       name: name,
       of: cls,
     }, ctx);
@@ -43,7 +149,6 @@ function run() {
     }, ctx));
   }
 
-  const pkg = org.chromium.apis.web;
   const releaseDAOs = getDAOs(C.RELEASE_NAME, pkg.Release);
   const webInterfaceDAOs = getDAOs(C.WEB_INTERFACE_NAME, pkg.WebInterface);
   const apiVelocityDAOs = getDAOs(C.API_VELOCITY_NAME, pkg.ApiVelocityData);
@@ -90,9 +195,11 @@ function run() {
                   E.EQ(pkg.ReleaseWebInterfaceJunction.SOURCE_ID, release.id))
                   .select(foam.dao.DAOSink.create({dao: junctions.local}))
                   .then(() => {
-                    // TODO(markdittmer): Signal page(s) that new data are
-                    // available.
+                    console.log('New release available:', release.releaseKey);
                     loadedReleases.put(release);
+                    newDataBox.send(foam.box.Message.create({
+                      object: release.releaseKey
+                    }));
                   });
             });
           }
