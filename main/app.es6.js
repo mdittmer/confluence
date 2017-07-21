@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 'use strict';
 
+window._onFOAM();
+
 require('materialize-css/dist/js/materialize.js');
 require('materialize-css/dist/css/materialize.css');
 require('angular');
