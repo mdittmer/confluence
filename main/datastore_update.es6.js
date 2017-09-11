@@ -196,6 +196,19 @@ function doImport(sync, load, daosArray) {
   });
 }
 
+function doImport2(sync, load, daosArray) {
+  return sync().then(function() {
+    return Promise.all(daosArray.map(function(daos) {
+      return unversionData(daos.sync, daos.cache);
+    }));
+  }).then(load);
+  //     .then(function() {
+  //   return Promise.all(daosArray.map(function(daos) {
+  //     return importData(daos.import, daos.cache, daos.sync);
+  //   }));
+  // });
+}
+
 //
 // Generic unversion + import algorithms.
 //
@@ -290,9 +303,19 @@ function syncAPIData() {
 }
 
 function loadLocalData() {
-  logger.info('Loading local data into memory');
-  return importer.import().then(function() {
-    logger.info('Data loaded into memory');
+  logger.info('Copying local data to import context (no API data import)');
+  return Promise.all([
+    releaseCacheDAO.select(foam.dao.DAOSink.create({
+      dao: releaseImportDAO,
+    })),
+    webInterfaceCacheDAO.select(foam.dao.DAOSink.create({
+      dao: webInterfaceImportDAO,
+    })),
+    releaseWebInterfaceJunctionCacheDAO.select(foam.dao.DAOSink.create({
+      dao: releaseWebInterfaceJunctionImportDAO,
+    })),
+  ]).then(function() {
+    logger.info('Copied local data to import context');
   });
 }
 
@@ -328,7 +351,7 @@ function computeMetrics() {
 // Do the import! First API data, then metrics data.
 //
 
-doImport(syncAPIData, loadLocalData, [
+doImport2(syncAPIData, loadLocalData, [
   {
     sync: releaseSyncDAO,
     cache: releaseCacheDAO,
