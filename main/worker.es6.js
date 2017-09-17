@@ -8,6 +8,7 @@ importScripts('foam.bundle.js');
 
 require('../lib/client/api_confluence.es6.js');
 require('../lib/client/api_matrix.es6.js');
+require('../lib/client/caching_dao.es6.js');
 require('../lib/client/events.es6.js');
 require('../lib/confluence/api_velocity_data.es6.js');
 require('../lib/confluence/browser_metric_data.es6.js');
@@ -42,15 +43,14 @@ function getCachingDAO(name, cls, ctx) {
 }
 
 function getLazyCacheDAO(name, cls, ctx) {
-  return foam.dao.LazyCacheDAO.create({
-    delegate: foam.dao.RestDAO.create({
-      baseURL: `${self.location.origin}/${name}`,
+  return pkg.ConfluenceCacheDAO.create({
       of: cls,
-    }, ctx),
-    cache: foam.dao.MDAO.create({of: cls}, ctx),
-    cacheOnSelect: true,
-    staleTimeout: Infinity,
-  }, ctx);
+      remote: foam.dao.RestDAO.create({
+        baseURL: `${self.location.origin}/${name}`,
+        of: cls,
+      }, ctx),
+      delegate: foam.dao.MDAO.create({of: cls}, ctx),
+    }, ctx);
 }
 
 const C = pkg.DAOContainer;
