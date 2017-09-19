@@ -261,10 +261,10 @@ function importData(importDAO, cacheDAO, syncDAO) {
     });
   }
   function updateData(srcDAO, cmpDAO, dstDAO) {
-    return Promise.all([
-      putData(srcDAO, cmpDAO, dstDAO),
-      removeData(srcDAO, cmpDAO, dstDAO),
-    ]);
+    // First remove, then put data. This yields "overwrite" when data are
+    // removed-then-put.
+    return removeData(srcDAO, cmpDAO, dstDAO)
+        .then(putData.bind(this, srcDAO, cmpDAO, dstDAO));
   }
 
   return updateData(importDAO, cacheDAO, syncDAO).then(function() {
