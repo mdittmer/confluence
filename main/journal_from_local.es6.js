@@ -13,6 +13,7 @@ require('../lib/confluence/aggressive_removal.es6.js');
 require('../lib/confluence/api_velocity.es6.js');
 require('../lib/confluence/api_velocity_data.es6.js');
 require('../lib/confluence/browser_metric_data.es6.js');
+require('../lib/confluence/browser_specific.es6.js');
 require('../lib/confluence/failure_to_ship.es6.js');
 require('../lib/confluence/set_ops.es6.js');
 require('../lib/dao_container.es6.js');
@@ -25,48 +26,49 @@ const pkg = org.chromium.apis.web;
 
 const logger = foam.log.ConsoleLogger.create();
 
-function getLocalDAO(name, delegate, ctx) {
+function getJournalDAO(name, cls, ctx, mode) {
+  const filename = path.resolve(__dirname, `../data/${name}-journal.js`);
+  logger.info(`Creating JDAO (mode=${mode}) in ${filename}`);
   return foam.dao.JDAO.create({
-    of: delegate.of,
-    delegate: delegate,
+    of: cls,
+    delegate: foam.dao.MDAO.create({of: cls}, ctx),
     journal: foam.dao.NodeFileJournal.create({
-      of: delegate.cls,
+      of: cls,
       fd: fs.openSync(
-          path.resolve(__dirname, `../data/${name}-journal.js`),
-          // Truncate journal.
-          'w+'),
+          filename,
+          mode),
     }, ctx),
   }, ctx);
 }
+function getOverwriteJournalDAO(name, cls, ctx) {
+  return getJournalDAO(name, cls, ctx, 'w+');
+}
+function getReadJournalDAO(name, cls, ctx) {
+  return getJournalDAO(name, cls, ctx, 'r');
+}
 
-const ctx = pkg.DAOContainer.create({
-  releaseDAO: foam.dao.MDAO.create({of: pkg.Release}),
-  webInterfaceDAO: foam.dao.MDAO.create({of: pkg.WebInterface}),
-  releaseWebInterfaceJunctionDAO: foam.dao.MDAO.create({
-    of: pkg.ReleaseWebInterfaceJunction,
-  }),
-  browserMetricsDAO: foam.dao.MDAO.create({of: pkg.BrowserMetricData}),
-  apiVelocityDAO: foam.dao.MDAO.create({of: pkg.ApiVelocityData}),
-}, foam.__context__.createSubContext({
+const ctx = pkg.DAOContainer.create(null, foam.__context__.createSubContext({
   logger: logger,
 }));
 
 const importer = pkg.ObjectGraphImporter.create({
   objectGraphPath: path.resolve(__dirname, '../data/og'),
 }, ctx);
-const junctionDAO = ctx.releaseWebInterfaceJunctionDAO;
 
-ctx.releaseDAO = getLocalDAO(pkg.Release.id, ctx.releaseDAO, ctx);
-ctx.webInterfaceDAO = getLocalDAO(
-    pkg.WebInterface.id, ctx.webInterfaceDAO, ctx);
-ctx.releaseWebInterfaceJunctionDAO = getLocalDAO(
-    pkg.WebInterface.id, ctx.releaseWebInterfaceJunctionDAO, ctx);
-ctx.apiVelocityDAO = getLocalDAO(
-    pkg.ApiVelocityData.id, ctx.apiVelocityDAO, ctx);
-ctx.browserMetricsDAO = getLocalDAO(
-    pkg.BrowserMetricData.id, ctx.browserMetricsDAO, ctx);
+ctx.releaseDAO = getReadJournalDAO(pkg.Release.id, pkg.Release, ctx);
+ctx.webInterfaceDAO = getReadJournalDAO(
+    pkg.WebInterface.id, pkg.WebInterface, ctx);
+ctx.releaseWebInterfaceJunctionDAO = getReadJournalDAO(
+    pkg.ReleaseWebInterfaceJunction.id,
+    pkg.ReleaseWebInterfaceJunction,
+    ctx);
+ctx.apiVelocityDAO = getOverwriteJournalDAO(
+    pkg.ApiVelocityData.id, pkg.ApiVelocityData, ctx);
+ctx.browserMetricsDAO = getOverwriteJournalDAO(
+    pkg.BrowserMetricData.id, pkg.BrowserMetricData, ctx);
 
 logger.info('Adding junction DAO indices');
+const junctionDAO = ctx.releaseWebInterfaceJunctionDAO.delegate;
 junctionDAO.addPropertyIndex(
     pkg.ReleaseWebInterfaceJunction.SOURCE_ID);
 junctionDAO.addPropertyIndex(
@@ -76,16 +78,27 @@ junctionDAO.addPropertyIndex(
     pkg.ReleaseWebInterfaceJunction.TARGET_ID);
 logger.info('Added junction DAO indices');
 
-logger.info('Importing API data');
-importer.import().then(function() {
-  logger.info('Waiting for API data journals to settle');
-  return Promise.all([
-    ctx.releaseDAO.synced,
-    ctx.webInterfaceDAO.synced,
-    ctx.releaseWebInterfaceJunctionDAO.synced,
-  ]);
-}).then(function() {
-  logger.info('API data imported');
+// logger.info('Importing API data');
+// importer.import().then(function() {
+//   logger.info('Waiting for API data journals to settle');
+//   return Promise.all([
+//     ctx.releaseDAO.synced,
+//     ctx.webInterfaceDAO.synced,
+//     ctx.releaseWebInterfaceJunctionDAO.synced,
+//   ]);
+// }).then(function() {
+//   logger.info('API data imported');
+
+//   // ...
+// });
+
+logger.info('Waiting for journaled API data');
+Promise.all([
+  ctx.releaseDAO.synced,
+  ctx.webInterfaceDAO.synced,
+  ctx.releaseWebInterfaceJunctionDAO.synced,
+]).then(function() {
+  logger.info('Journaled API data loaded');
 
   logger.info('Computing API metrics');
   return Promise.all([
