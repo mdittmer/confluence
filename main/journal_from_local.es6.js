@@ -55,10 +55,10 @@ const importer = pkg.ObjectGraphImporter.create({
   objectGraphPath: path.resolve(__dirname, '../data/og'),
 }, ctx);
 
-ctx.releaseDAO = getReadJournalDAO(pkg.Release.id, pkg.Release, ctx);
-ctx.webInterfaceDAO = getReadJournalDAO(
+ctx.releaseDAO = getOverwriteJournalDAO(pkg.Release.id, pkg.Release, ctx);
+ctx.webInterfaceDAO = getOverwriteJournalDAO(
     pkg.WebInterface.id, pkg.WebInterface, ctx);
-ctx.releaseWebInterfaceJunctionDAO = getReadJournalDAO(
+ctx.releaseWebInterfaceJunctionDAO = getOverwriteJournalDAO(
     pkg.ReleaseWebInterfaceJunction.id,
     pkg.ReleaseWebInterfaceJunction,
     ctx);
@@ -78,27 +78,16 @@ junctionDAO.addPropertyIndex(
     pkg.ReleaseWebInterfaceJunction.TARGET_ID);
 logger.info('Added junction DAO indices');
 
-// logger.info('Importing API data');
-// importer.import().then(function() {
-//   logger.info('Waiting for API data journals to settle');
-//   return Promise.all([
-//     ctx.releaseDAO.synced,
-//     ctx.webInterfaceDAO.synced,
-//     ctx.releaseWebInterfaceJunctionDAO.synced,
-//   ]);
-// }).then(function() {
-//   logger.info('API data imported');
-
-//   // ...
-// });
-
-logger.info('Waiting for journaled API data');
-Promise.all([
-  ctx.releaseDAO.synced,
-  ctx.webInterfaceDAO.synced,
-  ctx.releaseWebInterfaceJunctionDAO.synced,
-]).then(function() {
-  logger.info('Journaled API data loaded');
+logger.info('Importing API data');
+importer.import().then(function() {
+  logger.info('Waiting for API data journals to settle');
+  return Promise.all([
+    ctx.releaseDAO.synced,
+    ctx.webInterfaceDAO.synced,
+    ctx.releaseWebInterfaceJunctionDAO.synced,
+  ]);
+}).then(function() {
+  logger.info('API data imported');
 
   logger.info('Computing API metrics');
   return Promise.all([
@@ -110,8 +99,8 @@ Promise.all([
 }).then(function() {
   logger.info('Waiting for API metrics journals to settle');
   return Promise.all([
-    ctx.browserMetricsSyncDAO.synced,
-    ctx.apiVelocitySyncDAO.synced,
+    ctx.browserMetricsDAO.synced,
+    ctx.apiVelocityDAO.synced,
   ]);
 }).then(function() {
     logger.info('Computed API metrics');
