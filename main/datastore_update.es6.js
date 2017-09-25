@@ -20,50 +20,11 @@ require('../lib/confluence/browser_specific.es6.js');
 require('../lib/confluence/failure_to_ship.es6.js');
 require('../lib/confluence/set_ops.es6.js');
 require('../lib/datastore/datastore_container.es6.js');
+require('../lib/datastore/updater.es6.js');
 require('../lib/web_apis/release.es6.js');
 require('../lib/web_apis/release_interface_relationship.es6.js');
 require('../lib/web_apis/web_interface.es6.js');
 require('../lib/web_catalog/object_graph_importer.es6.js');
-
-//
-// Add custom PutDecider: Put-when-different; used to avoid bumping version
-// numbers when writing data to Datastore that matches what's already there.
-//
-
-foam.CLASS({
-  package: 'org.chromium.mlang.sink',
-  name: 'DiffOnlyDecider',
-  implements: ['org.chromium.mlang.sink.AsyncSinkPutDecider'],
-  axioms: [
-    foam.pattern.Singleton.create(),
-  ],
-
-  documentation: `Put incoming objects to delegate iff "original" (to be put)
-      does not equal "found" (current data in "secondary").`,
-
-  methods: [
-    function shouldPutToDelegate(original, found) {
-      return !foam.util.equals(original, found);
-    },
-  ],
-});
-
-foam.CLASS({
-  package: 'org.chromium.mlang.update',
-  name: 'Expressions',
-  refines: 'foam.mlang.Expressions',
-
-  requires: [
-    'org.chromium.mlang.sink.DiffOnlyDecider',
-  ],
-
-  methods: [
-    function DIFF_ONLY(dao, sink) {
-      return this.cascadeSink_(
-        this.DiffOnlyDecider, Array.isArray(dao) ? dao : [dao], sink);
-    },
-  ],
-});
 
 //
 // Setup contexts for writing to datastore, caching a local copy of current
@@ -181,96 +142,19 @@ if (junctionDAO) {
 //     unversioned Datastore cache that does not also appear in new data.
 //
 
+const updater = pkg.DatastoreUpdater.create();
 function doImport(sync, load, daosArray) {
   return Promise.all([
     sync().then(function() {
       return Promise.all(daosArray.map(function(daos) {
-        return unversionData(daos.sync, daos.cache);
+        return updater.unversionData(daos.sync, daos.cache);
       }));
     }),
     load(),
   ]).then(function() {
     return Promise.all(daosArray.map(function(daos) {
-      return importData(daos.import, daos.cache, daos.sync);
+      return updater.importData(daos.import, daos.cache, daos.sync);
     }));
-  });
-}
-
-//
-// Generic unversion + import algorithms.
-//
-
-function unversionData(syncDAO, cacheDAO) {
-  function unversion(versionedDAO, unversionedDAO) {
-    return versionedDAO.select().then(function(sink) {
-      const array = sink.array;
-      logger.log(`Unversioning ${array.length} ${versionedDAO.of.id} objects`);
-      const cls = unversionedDAO.of;
-      let promises = [];
-      for (let i = 0; i < array.length; i++) {
-        promises.push(unversionedDAO.put(cls.create(array[i])));
-      }
-      return Promise.all(promises).then(function() {
-        logger.log(`Unversioned ${array.length} ${versionedDAO.of.id} objects`);
-      });
-    });
-  }
-
-  return unversion(syncDAO, cacheDAO);
-}
-
-function importData(importDAO, cacheDAO, syncDAO) {
-  const E = foam.mlang.ExpressionsSingleton.create();
-  function putData(srcDAO, cmpDAO, dstDAO) {
-    logger.info(`Computing data changes for ${srcDAO.of.id}`);
-    const sink = foam.dao.ArraySink.create();
-    return srcDAO.select(E.DIFF_ONLY(cmpDAO, sink))
-        .then(function() {
-          const array = sink.array;
-          logger.info(`Pushing ${array.length} ${srcDAO.of.id} to Datastore`);
-          let promises = [];
-          for (var i = 0; i < array.length; i++) {
-            promises.push(dstDAO.put(array[i]));
-          }
-          return Promise.all(promises).then(function() {
-            logger.info(`Pushed ${array.length} ${srcDAO.of.id} to Datastore`);
-          });
-        });
-  }
-  function removeData(srcDAO, cmpDAO, dstDAO) {
-    const sink = foam.dao.ArraySink.create();
-
-    // Quick sanity check against deleting entire database.
-    return srcDAO.select(E.COUNT()).then(function(countSink) {
-      foam.assert(countSink.value > 0,
-                  'Datastore update should not empty entire database' +
-                      ` (new data source for ${srcDAO.of.id} is empty)`);
-
-      // Remove records in cmp, but not src.
-      return cmpDAO.select(E.SET_MINUS(srcDAO, sink));
-    }).then(function() {
-      const array = sink.array;
-      logger.info(`Deleting ${array.length} ${srcDAO.of.id} from Datastore`);
-      let promises = [];
-      for (var i = 0; i < array.length; i++) {
-        promises.push(dstDAO.remove(array[i]));
-      }
-      return Promise.all(promises).then(function() {
-        logger.info(`Deleted ${array.length} ${srcDAO.of.id} from Datastore`);
-      });
-    });
-  }
-  function updateData(srcDAO, cmpDAO, dstDAO) {
-    return Promise.all([
-      putData(srcDAO, cmpDAO, dstDAO),
-      removeData(srcDAO, cmpDAO, dstDAO),
-    ]);
-  }
-
-  return updateData(importDAO, cacheDAO, syncDAO).then(function() {
-    return syncDAO.sync();
-  }).then(function() {
-    logger.info(`Imported ${importDAO.of.id} to Datastore`);
   });
 }
 
