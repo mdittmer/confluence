@@ -80,20 +80,19 @@ const importCtx = pkg.DAOContainer.create({
       pkg.ApiVelocityData.id, pkg.ApiVelocityData, ctx),
 }, ctx);
 
-// Context for local journaled export output.
-const exportCtx = pkg.DAOContainer.create({
-  releaseDAO: getOverwriteJournalDAO(
-      pkg.VersionedRelease.id, pkg.VersionedRelease, ctx),
-  webInterfaceDAO: getOverwriteJournalDAO(
-      pkg.VersionedWebInterface.id, pkg.VersionedWebInterface, ctx),
-  releaseWebInterfaceJunctionDAO: getOverwriteJournalDAO(
-      pkg.VersionedReleaseWebInterfaceJunction.id,
-      pkg.VersionedReleaseWebInterfaceJunction, ctx),
-  browserMetricsDAO: getOverwriteJournalDAO(
-      pkg.VersionedBrowserMetricData.id, pkg.VersionedBrowserMetricData, ctx),
-  apiVelocityDAO: getOverwriteJournalDAO(
-      pkg.VersionedApiVelocityData.id, pkg.VersionedApiVelocityData, ctx),
-}, ctx);
+// Replace Datastore context's SyncDAO.delegate values with JDAOs to retain
+// versioned copy of latest data.
+datastoreCtx.releaseDAO.delegate = getOverwriteJournalDAO(
+    pkg.VersionedRelease.id, pkg.VersionedRelease, ctx);
+datastoreCtx.webInterfaceDAO.delegate = getOverwriteJournalDAO(
+    pkg.VersionedWebInterface.id, pkg.VersionedWebInterface, ctx);
+datastoreCtx.releaseWebInterfaceJunctionDAO.delegate = getOverwriteJournalDAO(
+    pkg.VersionedReleaseWebInterfaceJunction.id,
+    pkg.VersionedReleaseWebInterfaceJunction, ctx);
+datastoreCtx.browserMetricsDAO.delegate = getOverwriteJournalDAO(
+    pkg.VersionedBrowserMetricData.id, pkg.VersionedBrowserMetricData, ctx);
+datastoreCtx.apiVelocityDAO.delegate = getOverwriteJournalDAO(
+    pkg.VersionedApiVelocityData.id, pkg.VersionedApiVelocityData, ctx);
 
 // Context for reading from / writing to Datastore.
 //
@@ -140,12 +139,12 @@ const apiVelocityImportDAO = importCtx.apiVelocityDAO;
 
 // Persistent DAOs of data that is exported. These will be later decorated with
 // versioning after Datastore versions are synced.
-const releaseExportDAO = exportCtx.releaseDAO;
-const webInterfaceExportDAO = exportCtx.webInterfaceDAO;
+const releaseExportDAO = datastoreCtx.releaseDAO.delegate;
+const webInterfaceExportDAO = datastoreCtx.webInterfaceDAO.delegate;
 const releaseWebInterfaceJunctionExportDAO =
-    exportCtx.releaseWebInterfaceJunctionDAO;
-const browserMetricsExportDAO = exportCtx.browserMetricsDAO;
-const apiVelocityExportDAO = exportCtx.apiVelocityDAO;
+    datastoreCtx.releaseWebInterfaceJunctionDAO.delegate;
+const browserMetricsExportDAO = datastoreCtx.browserMetricsDAO.delegate;
+const apiVelocityExportDAO = datastoreCtx.apiVelocityDAO.delegate;
 
 //
 // Generic algorithm for data import:
@@ -177,55 +176,18 @@ function doImport(sync, load, daosArray) {
 //
 
 function syncDatastoreData(daos) {
-  function addVersioningToExportDAO(versionedDAO, exportDAO, ctx) {
-    foam.assert(versionedDAO.of === exportDAO.of,
-                `Expect versioned DAO and ExportDAO to have same "of"
-                     (found: ${versionedDAO.of.id} and ${exportDAO.of.id})`);
-
-    // TODO(markdittmer): Changing VersionNoDAO into a PromiseDAO (with a better
-    // "readiness API") is an outstanding issue. This check should catch any API
-    // change that this code cannot handle.
-    foam.assert(foam.core.Boolean.isInstance(foam.dao.VersionNoDAO.READY_),
-                'Expect VersionNoDAO to use "ready_" flag');
-
-    logger.info(`Initializing export versioned ExportDAO for
-                     ${exportDAO.of.id}`);
-
-    // VersionNoDAO will initialize itself with the highest version number that
-    // it finds in its delegate. Initialize one with the versioneDAO as the
-    // delegate, then swap delegates and resolve returning Promise when
-    // VersionNoDAO is initialized.
-    const versionNoDAO = foam.dao.VersionNoDAO.create({
-      of: versionedDAO.of,
-      delegate: versionedDAO,
+  function addVersioningToExportDAO(exportDAO, ctx) {
+    return foam.dao.VersionNoDAO.create({
+      of: exportDAO.of,
+      delegate: exportDAO,
     }, ctx);
-    return new Promise((resolve, reject) => {
-      if (versionNoDAO.ready_) {
-        versionNoDAO.delegate = exportDAO;
-        logger.info(`Export versioned ExportDAO for ${exportDAO.of.id}
-                         initialized`);
-        resolve(versionNoDAO);
-        return;
-      }
-
-      const subscription = versionNoDAO.ready_$.sub(() => {
-        if (!versionNoDAO.ready_) return;
-
-        versionNoDAO.delegate = exportDAO;
-        logger.info(`Export versioned ExportDAO for ${exportDAO.of.id}
-                         initialized`);
-        resolve(versionNoDAO);
-        subscription.detach();
-      });
-    });
   }
 
   logger.info(`Syncing Datastore data: ${daos.sync.of.id}`);
   // Sync data from Datastore.
   return daos.sync.synced
       // Wrap export DAO in versioning DAO
-      .then(() => addVersioningToExportDAO.bind(this, daos.sync, daos.export,
-                                                exportCtx))
+      .then(() => addVersioningToExportDAO.bind(this, daos.export, ctx))
       // Overwrite "export DAO" with versioned export DAO.
       .then(exportDAO => daos.export = exportDAO)
       .then(() => {
