@@ -80,20 +80,6 @@ const importCtx = pkg.DAOContainer.create({
       pkg.ApiVelocityData.id, pkg.ApiVelocityData, ctx),
 }, ctx);
 
-// Replace Datastore context's SyncDAO.delegate values with JDAOs to retain
-// versioned copy of latest data.
-datastoreCtx.releaseDAO.delegate = getOverwriteJournalDAO(
-    pkg.VersionedRelease.id, pkg.VersionedRelease, ctx);
-datastoreCtx.webInterfaceDAO.delegate = getOverwriteJournalDAO(
-    pkg.VersionedWebInterface.id, pkg.VersionedWebInterface, ctx);
-datastoreCtx.releaseWebInterfaceJunctionDAO.delegate = getOverwriteJournalDAO(
-    pkg.VersionedReleaseWebInterfaceJunction.id,
-    pkg.VersionedReleaseWebInterfaceJunction, ctx);
-datastoreCtx.browserMetricsDAO.delegate = getOverwriteJournalDAO(
-    pkg.VersionedBrowserMetricData.id, pkg.VersionedBrowserMetricData, ctx);
-datastoreCtx.apiVelocityDAO.delegate = getOverwriteJournalDAO(
-    pkg.VersionedApiVelocityData.id, pkg.VersionedApiVelocityData, ctx);
-
 // Context for reading from / writing to Datastore.
 //
 // TODO(markdittmer): Figure out why partitioning isn't working. This component
@@ -112,6 +98,20 @@ const datastoreCtx = pkg.DatastoreContainer.create({
   gcloudProjectId: credentials.project_id,
   logger: logger,
 }).ctx;
+
+// Replace Datastore context's SyncDAO.delegate values with JDAOs to retain
+// versioned copy of latest data.
+datastoreCtx.releaseDAO.delegate = getOverwriteJournalDAO(
+    pkg.VersionedRelease.id, pkg.VersionedRelease, ctx);
+datastoreCtx.webInterfaceDAO.delegate = getOverwriteJournalDAO(
+    pkg.VersionedWebInterface.id, pkg.VersionedWebInterface, ctx);
+datastoreCtx.releaseWebInterfaceJunctionDAO.delegate = getOverwriteJournalDAO(
+    pkg.VersionedReleaseWebInterfaceJunction.id,
+    pkg.VersionedReleaseWebInterfaceJunction, ctx);
+datastoreCtx.browserMetricsDAO.delegate = getOverwriteJournalDAO(
+    pkg.VersionedBrowserMetricData.id, pkg.VersionedBrowserMetricData, ctx);
+datastoreCtx.apiVelocityDAO.delegate = getOverwriteJournalDAO(
+    pkg.VersionedApiVelocityData.id, pkg.VersionedApiVelocityData, ctx);
 
 // SyncDAOs connected to Datastore.
 const releaseSyncDAO = datastoreCtx.releaseDAO;
