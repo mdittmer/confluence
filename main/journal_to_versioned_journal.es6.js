@@ -187,7 +187,7 @@ function syncDatastoreData(daos) {
   // Sync data from Datastore.
   return daos.sync.synced
       // Wrap export DAO in versioning DAO
-      .then(() => addVersioningToExportDAO.bind(this, daos.export, ctx))
+      .then(() => addVersioningToExportDAO(daos.export, ctx))
       // Overwrite "export DAO" with versioned export DAO.
       .then(exportDAO => daos.export = exportDAO)
       .then(() => {
