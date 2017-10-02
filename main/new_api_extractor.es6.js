@@ -32,20 +32,10 @@ const ctx = foam.__context__.createSubContext({
   objectGraph: g,
 });
 
-const old = OldApiExtractor.create(null, ctx).extractWebCatalogAndSources(g);
-const nu = NewApiExtractor.create(null, ctx).extractWebCatalogAndSources(g);
-const oldAPIs = catalogToArray(old.catalog);
-const nuAPIs = catalogToArray(nu.catalog);
-
-let oldIdx = 0;
-let nuIdx = 0;
-
 const stream = require('fs').createWriteStream('apiReport.html');
 function out(str) {
   stream.write(str);
 }
-
-debugger;
 out(`<!DOCTYPE HTML>
 <html>
 <head>
@@ -54,11 +44,38 @@ details { padding: 4px 8px; }
 </style>
 </head>
 <body>`);
+
+const old = OldApiExtractor.create(null, ctx).extractWebCatalogAndSources(g);
+const nu = NewApiExtractor.create(null, ctx).extractWebCatalogAndSources(g);
+const oldAPIs = catalogToArray(old.catalog);
+const nuAPIs = catalogToArray(nu.catalog);
+
+let oldIdx = 0;
+let nuIdx = 0;
+let startChar = oldAPIs[0].interfaceName.charAt(0) <
+    nuAPIs[0].interfaceName.charAt(0) ?
+    oldAPIs[0].interfaceName.charAt(0) :
+    nuAPIs[0].interfaceName.charAt(0);
+let startCharCounter = 0;
+out(`<details><summary>${startChar}...</summary>`);
+
 while (oldIdx < oldAPIs.length && nuIdx < nuAPIs.length) {
   const oldApi = oldAPIs[oldIdx];
   const nuApi = nuAPIs[nuIdx];
+
+  const oldStart = oldApi.interfaceName.charAt(0);
+  const nuStart = nuApi.interfaceName.charAt(0);
+  if (oldStart > startChar && nuStart > startChar) {
+    startCharCounter = (startCharCounter + 1) % 8;
+    if (startCharCounter === 0) {
+      startChar = oldStart < nuStart ? oldStart : nuStart;
+      out(`</details><details><summary>${startChar}...</summary>`);
+    }
+  }
+
   const oldId = `${oldApi.interfaceName}#${oldApi.apiName}`;
   const nuId = `${nuApi.interfaceName}#${nuApi.apiName}`;
+
   if (oldId < nuId) {
     // Nu missing oldId.
     out(`<details><summary>Missing ${oldId}</summary>
@@ -85,7 +102,8 @@ while (oldIdx < oldAPIs.length && nuIdx < nuAPIs.length) {
     nuIdx++;
   }
 }
-out(`</body>
+out(`</details>
+</body>
 </html>`);
 
 stream.end();
