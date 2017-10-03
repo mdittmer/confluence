@@ -22,7 +22,8 @@ function catalogToArray(catalog) {
   for (const interfaceName of interfaceNames) {
     const apis = catalog[interfaceName].sort();
     for (const apiName of apis) {
-      ret.push({interfaceName, apiName});
+      ret.push(`${interfaceName}#${apiName}`);
+      // ret.push({interfaceName, apiName});
     }
   }
   return ret;
@@ -32,78 +33,84 @@ const ctx = foam.__context__.createSubContext({
   objectGraph: g,
 });
 
-const stream = require('fs').createWriteStream('apiReport.html');
-function out(str) {
-  stream.write(str);
-}
-out(`<!DOCTYPE HTML>
-<html>
-<head>
-<style>
-details { padding: 4px 8px; }
-</style>
-</head>
-<body>`);
-
 const old = OldApiExtractor.create(null, ctx).extractWebCatalogAndSources(g);
 const nu = NewApiExtractor.create(null, ctx).extractWebCatalogAndSources(g);
 const oldAPIs = catalogToArray(old.catalog);
 const nuAPIs = catalogToArray(nu.catalog);
 
-let oldIdx = 0;
-let nuIdx = 0;
-let startChar = oldAPIs[0].interfaceName.charAt(0) <
-    nuAPIs[0].interfaceName.charAt(0) ?
-    oldAPIs[0].interfaceName.charAt(0) :
-    nuAPIs[0].interfaceName.charAt(0);
-let startCharCounter = 0;
-out(`<details><summary>${startChar}...</summary>`);
+const fs = require('fs');
+// fs.writeFileSync(`${ogPath}.old_apis.json`, JSON.stringify(oldAPIs, null, 2));
+// fs.writeFileSync(`${ogPath}.new_apis.json`, JSON.stringify(nuAPIs, null, 2));
+fs.writeFileSync(`${ogPath}.old_apis.txt`, JSON.stringify(oldAPIs, null, 2));
+fs.writeFileSync(`${ogPath}.new_apis.txt`, JSON.stringify(nuAPIs, null, 2));
 
-while (oldIdx < oldAPIs.length && nuIdx < nuAPIs.length) {
-  const oldApi = oldAPIs[oldIdx];
-  const nuApi = nuAPIs[nuIdx];
+// const stream = require('fs').createWriteStream('apiReport.html');
+// function out(str) {
+//   stream.write(str);
+// }
+// out(`<!DOCTYPE HTML>
+// <html>
+// <head>
+// <style>
+// details { padding: 4px 8px; }
+// </style>
+// </head>
+// <body>`);
 
-  const oldStart = oldApi.interfaceName.charAt(0);
-  const nuStart = nuApi.interfaceName.charAt(0);
-  if (oldStart > startChar && nuStart > startChar) {
-    startCharCounter = (startCharCounter + 1) % 8;
-    if (startCharCounter === 0) {
-      startChar = oldStart < nuStart ? oldStart : nuStart;
-      out(`</details><details><summary>${startChar}...</summary>`);
-    }
-  }
+// let oldIdx = 0;
+// let nuIdx = 0;
+// let startChar = oldAPIs[0].interfaceName.charAt(0) <
+//     nuAPIs[0].interfaceName.charAt(0) ?
+//     oldAPIs[0].interfaceName.charAt(0) :
+//     nuAPIs[0].interfaceName.charAt(0);
+// let startCharCounter = 0;
+// out(`<details><summary>${startChar}...</summary>`);
 
-  const oldId = `${oldApi.interfaceName}#${oldApi.apiName}`;
-  const nuId = `${nuApi.interfaceName}#${nuApi.apiName}`;
+// while (oldIdx < oldAPIs.length && nuIdx < nuAPIs.length) {
+//   const oldApi = oldAPIs[oldIdx];
+//   const nuApi = nuAPIs[nuIdx];
 
-  if (oldId < nuId) {
-    // Nu missing oldId.
-    out(`<details><summary>Missing ${oldId}</summary>
-                     ${pkg.Api.MISSING_TO_HTML(g, oldId, ctx)}
-             </details>`);
-    oldIdx++;
-  } else if (oldId > nuId) {
-    // Old missing nuId.
-    const nuSource = nu.sources[nuApi.interfaceName][nuApi.apiName];
-    const api = pkg.Api.create({
-      interfaceName: nuApi.interfaceName,
-      apiName: nuApi.apiName,
-      sourceObjectGraphId: nuSource,
-    }, ctx);
-    out(`<details><summary>Added ${nuId}</summary>
-                     ${api.toHTML()}
-                 </details>`);
-                     // ${JSON.stringify(nuApi)}
-    nuIdx++;
-  } else {
-    // Match.
-    // out(`<details><summary>Matched ${oldId}</summary></details>`);
-    oldIdx++;
-    nuIdx++;
-  }
-}
-out(`</details>
-</body>
-</html>`);
+//   const oldStart = oldApi.interfaceName.charAt(0);
+//   const nuStart = nuApi.interfaceName.charAt(0);
+//   if (oldStart > startChar && nuStart > startChar) {
+//     startCharCounter = (startCharCounter + 1) % 8;
+//     if (startCharCounter === 0) {
+//       startChar = oldStart < nuStart ? oldStart : nuStart;
+//       out(`</details><details><summary>${startChar}...</summary>`);
+//     }
+//   }
 
-stream.end();
+//   const oldId = `${oldApi.interfaceName}#${oldApi.apiName}`;
+//   const nuId = `${nuApi.interfaceName}#${nuApi.apiName}`;
+
+//   if (oldId < nuId) {
+//     // Nu missing oldId.
+//     out(`<details><summary>Missing ${oldId}</summary>
+//                      ${pkg.Api.MISSING_TO_HTML(g, oldId, ctx)}
+//              </details>`);
+//     oldIdx++;
+//   } else if (oldId > nuId) {
+//     // Old missing nuId.
+//     const nuSource = nu.sources[nuApi.interfaceName][nuApi.apiName];
+//     const api = pkg.Api.create({
+//       interfaceName: nuApi.interfaceName,
+//       apiName: nuApi.apiName,
+//       sourceObjectGraphId: nuSource,
+//     }, ctx);
+//     out(`<details><summary>Added ${nuId}</summary>
+//                      ${api.toHTML()}
+//                  </details>`);
+//                      // ${JSON.stringify(nuApi)}
+//     nuIdx++;
+//   } else {
+//     // Match.
+//     // out(`<details><summary>Matched ${oldId}</summary></details>`);
+//     oldIdx++;
+//     nuIdx++;
+//   }
+// }
+// out(`</details>
+// </body>
+// </html>`);
+
+// stream.end();
