@@ -25,16 +25,29 @@ require('../lib/web_apis/release_interface_relationship.es6.js');
 require('../lib/web_apis/web_interface.es6.js');
 const pkg = org.chromium.apis.web;
 
-// Setup BaseDatastoreContainer for logging and authenticated Datastore access.
-const credentials = JSON.parse(fs.readFileSync(
-    path.resolve(__dirname, '../.local/credentials.json')));
 const logger = foam.log.ConsoleLogger.create();
-const daoContainer = pkg.BaseDatastoreContainer.create({
-  gcloudAuthEmail: credentials.client_email,
-  gcloudAuthPrivateKey: credentials.private_key,
-  gcloudProjectId: credentials.project_id,
-  logger: logger,
-});
-const ctx = daoContainer.ctx;
+let credentials;
+let ctx;
+try {
+  // Setup BaseDatastoreContainer for logging and authenticated Datastore
+  // access.
+  credentials = JSON.parse(fs.readFileSync(
+      path.resolve(__dirname, '../.local/credentials.json')));
+  ctx = pkg.BaseDatastoreContainer.create({
+    gcloudAuthEmail: credentials.client_email,
+    gcloudAuthPrivateKey: credentials.private_key,
+    gcloudProjectId: credentials.project_id,
+    logger: logger,
+  }).ctx;
+} catch (e) {
+  logger.warn('No Datastore credentails found');
+  // Setup DAOContainer with logger and safe box context.
+  ctx = foam.box.Context.create({
+    unsafe: false,
+    classWhitelist: require('../data/class_whitelist.json'),
+  }, pkg.DAOContainer.create(null, foam.__context__.createSubContext({
+    logger: logger,
+  }))).__subContext__;
+}
 
 foam.box.node.ForkBox.CONNECT_TO_PARENT(ctx);

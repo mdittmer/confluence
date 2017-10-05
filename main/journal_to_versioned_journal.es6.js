@@ -38,7 +38,7 @@ const ctx = foam.__context__.createSubContext({
 });
 
 function getJournalDAO(name, cls, ctx, flags) {
-  const filename = path.resolve(__dirname, `../data/${name}-journal.js`);
+  const filename = path.resolve(__dirname, `../data/journal/${name}-journal.js`);
   logger.info(`Creating JDAO (flags=${flags}) in ${filename}`);
   return foam.dao.JDAO.create({
     of: cls,
@@ -181,6 +181,7 @@ function doImport(sync, load, daosArray) {
 
 function syncDatastoreData(daos) {
   function addVersioningToExportDAO(exportDAO, ctx) {
+    debugger;
     return foam.dao.VersionNoDAO.create({
       of: exportDAO.of,
       delegate: exportDAO,

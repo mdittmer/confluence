@@ -55,10 +55,10 @@ const importer = pkg.ObjectGraphImporter.create({
   objectGraphPath: path.resolve(__dirname, '../data/object-graph'),
 }, ctx);
 
-ctx.releaseDAO = getOverwriteJournalDAO(pkg.Release.id, pkg.Release, ctx);
-ctx.webInterfaceDAO = getOverwriteJournalDAO(
+ctx.releaseDAO = getReadJournalDAO(pkg.Release.id, pkg.Release, ctx);
+ctx.webInterfaceDAO = getReadJournalDAO(
     pkg.WebInterface.id, pkg.WebInterface, ctx);
-ctx.releaseWebInterfaceJunctionDAO = getOverwriteJournalDAO(
+ctx.releaseWebInterfaceJunctionDAO = getReadJournalDAO(
     pkg.ReleaseWebInterfaceJunction.id,
     pkg.ReleaseWebInterfaceJunction,
     ctx);
@@ -78,8 +78,9 @@ junctionDAO.addPropertyIndex(
     pkg.ReleaseWebInterfaceJunction.TARGET_ID);
 logger.info('Added junction DAO indices');
 
-logger.info('Importing API data');
-importer.import().then(function() {
+// logger.info('Importing API data');
+// importer.import()
+Promise.resolve().then(function() {
   logger.info('Waiting for API data journals to settle');
   return Promise.all([
     ctx.releaseDAO.synced,

@@ -14,6 +14,7 @@ require('../lib/confluence/api_velocity.es6.js');
 require('../lib/confluence/browser_specific.es6.js');
 require('../lib/confluence/failure_to_ship.es6.js');
 require('../lib/datastore/datastore_container.es6.js');
+require('../lib/http_json_dao_container.es6.js');
 require('../lib/server/server.es6.js');
 require('../lib/web_apis/release.es6.js');
 require('../lib/web_apis/release_interface_relationship.es6.js');
@@ -32,10 +33,6 @@ foam.CLASS({
   ],
 });
 
-let server = pkg.Server.create({
-  port: 8080,
-});
-
 const logger = foam.log.ConsoleLogger.create();
 let credentials = null;
 try {
@@ -50,10 +47,14 @@ const daoContainer = credentials ? pkg.DatastoreContainer.create({
   gcloudAuthPrivateKey: credentials.private_key,
   gcloudProjectId: credentials.project_id,
   logger: logger,
-}) : pkg.DAOContainer.create({
+}) : pkg.HttpJsonDAOContainer.create({
   logger: logger,
 });
 const ctx = daoContainer.ctx || daoContainer;
+
+let server = pkg.Server.create({
+  port: 8080,
+}, ctx);
 
 function registerDAO(name, dao) {
   foam.assert(dao, 'Broken use of helper: registerDAO()');
