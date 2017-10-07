@@ -1,20 +1,20 @@
-const ogPath = require('process').argv[2];
+const ogPaths = require('process').argv.slice(2);
 
-if (!ogPath) throw new Error('Expected parameter: Path to object graph file');
+if (!ogPaths) throw new Error('Expected parameter: Path to object graph file');
 
 const ObjectGraph = require('object-graph-js').ObjectGraph;
 
 global.FOAM_FLAGS = {gcloud: true};
 require('foam2');
 
-const g = ObjectGraph.fromJSON(require(ogPath));
+const gs = ogPaths.map(path => {
+  return {path, graph: ObjectGraph.fromJSON(require(path))};
+});
 
 require('../lib/web_catalog/api_extractor.es6.js');
-require('../lib/web_catalog/new_api_extractor.es6.js');
 const pkg = org.chromium.apis.web;
 
-const OldApiExtractor = pkg.OldApiExtractor;
-const NewApiExtractor = pkg.NewApiExtractor;
+const ApiExtractor = pkg.ApiExtractor;
 
 function catalogToArray(catalog) {
   const interfaceNames = Object.keys(catalog).sort();
@@ -29,21 +29,19 @@ function catalogToArray(catalog) {
   return ret;
 }
 
-const ctx = foam.__context__.createSubContext({
-  objectGraph: g,
-});
+for (const g of gs) {
+  const ctx = foam.__context__.createSubContext({
+    objectGraph: g.graph,
+  });
 
-const old = OldApiExtractor.create(null, ctx).extractWebCatalogAndSources(g);
-const nu = NewApiExtractor.create(null, ctx).extractWebCatalogAndSources(g);
-const oldAPIs = catalogToArray(old.catalog);
-const nuAPIs = catalogToArray(nu.catalog);
+  const catalog = ApiExtractor.create(null, ctx).extractWebCatalog(g.graph);
 
-const fs = require('fs');
-// fs.writeFileSync(`${ogPath}.old_apis.json`, JSON.stringify(oldAPIs, null, 2));
-// fs.writeFileSync(`${ogPath}.new_apis.json`, JSON.stringify(nuAPIs, null, 2));
-fs.writeFileSync(`${ogPath}.old_apis.txt`, JSON.stringify(oldAPIs, null, 2));
-fs.writeFileSync(`${ogPath}.new_apis.txt`, JSON.stringify(nuAPIs, null, 2));
-
+  const fs = require('fs');
+  // fs.writeFileSync(`${ogPath}.old_apis.json`, JSON.stringify(oldAPIs, null, 2));
+  // fs.writeFileSync(`${ogPath}.new_apis.json`, JSON.stringify(nuAPIs, null, 2));
+  // fs.writeFileSync(`${ogPath}.old_apis.txt`, JSON.stringify(oldAPIs, null, 2));
+  fs.writeFileSync(`${g.path}.new_apis.txt`, JSON.stringify(catalogToArray(catalog), null, 2));
+}
 // const stream = require('fs').createWriteStream('apiReport.html');
 // function out(str) {
 //   stream.write(str);
