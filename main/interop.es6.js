@@ -137,7 +137,7 @@ const saveDataJSON = () => {
 const saveDataCSV = () => {
   let str = '"Date","0 Browsers","1 Browsers","2 Browsers","3 Browsers","4 Browsers","..."\n';
   dataOut.forEach(({date, counts}) => {
-    str += `"${date.toISOString()}",${counts.join(',')},`;
+    str += `"${date.toISOString()}",${counts.join(',')}\n`;
   });
   fs.writeFileSync(`${__dirname}/../data/interop.csv`, str);
 };
