@@ -15,6 +15,7 @@ module.exports = {
     // Copied in each webpack.<configuration>.js, when FOAM_FLAGS are finalized.
     foam: [path.resolve(C.ROOT_DIR, '.local/foam-bin')],
     app: [path.resolve(C.ROOT_DIR, 'main/app.es6')],
+    app2: [path.resolve(C.ROOT_DIR, 'main/app2.es6')],
   },
   output: {
     filename: '[name].bundle.js',
@@ -23,7 +24,7 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /worker\.(es6\.)?js$/,
+        test: /worker[0-9.]+(es6\.)?js$/,
         use: [
           {
             loader: 'worker-loader',

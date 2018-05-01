@@ -77,5 +77,6 @@
   "org.chromium.apis.web.VersionedRelease",
   "org.chromium.apis.web.VersionedReleaseWebInterfaceJunction",
   "org.chromium.apis.web.VersionedWebInterface",
-  "org.chromium.apis.web.WebInterface"
+  "org.chromium.apis.web.WebInterface",
+  "org.chromium.apis.web.WorkerDAO"
 ]
