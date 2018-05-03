@@ -21,7 +21,7 @@ require('../lib/confluence/aggressive_removal.es6.js');
 require('../lib/confluence/api_velocity.es6.js');
 require('../lib/confluence/browser_specific.es6.js');
 require('../lib/confluence/failure_to_ship.es6.js');
-require('../lib/json_dao_container.es6.js');
+require('../lib/dao/json_dao_container.es6.js');
 require('../lib/server/server.es6.js');
 require('../lib/web_apis/api_compat_data.es6.js');
 require('../lib/web_apis/release.es6.js');
